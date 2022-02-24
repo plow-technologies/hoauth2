@@ -27,7 +27,7 @@ Copyright:           Haisheng Wu
 Category:            Network
 Build-type:          Simple
 Stability:           Beta
-Tested-With:         GHC <= 8.10.7
+Tested-With:         GHC == 8.10.7
 
 Extra-source-files: sample.env.json
                     README.org
