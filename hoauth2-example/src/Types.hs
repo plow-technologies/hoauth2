@@ -7,6 +7,7 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -142,7 +143,10 @@ defaultOAuth2RedirectUri = [uri|http://localhost:9988/oauth2/callback|]
 -- Heterogenous collections
 -- https://wiki.haskell.org/Heterogenous_collections
 --
-data IDPApp = forall a. IsIDP a => IDPApp a
+-- data IDPApp = forall a. IsIDP a => IDPApp a
+
+data IDPApp where
+  IDPApp :: forall a. IsIDP a => a -> IDPApp
 
 newtype LoginUser = LoginUser
   { loginUserName :: TL.Text

@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TypeApplications #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -58,7 +59,7 @@ createIDPs = do
       IDPApp (initIdp IGithub.githubIdp),
       IDPApp (initIdp IGoogle.googleIdp),
       IDPApp (initIdp ILinkedin.linkedinIdp),
-      IDPApp
+      IDPApp @(IDP IAuth0.Auth0)
         (initIdp IOkta.oktaIdp),
       IDPApp
         (initIdp ISlack.slackIdp),
