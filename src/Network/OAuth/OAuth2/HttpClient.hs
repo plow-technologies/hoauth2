@@ -26,7 +26,8 @@ import           Data.Aeson
 import           Data.Bifunctor                    (first)
 import qualified Data.ByteString.Char8             as BS
 import qualified Data.ByteString.Lazy.Char8        as BSL
-import qualified Data.HashMap.Strict               as HM (fromList)
+import qualified Data.Aeson.Key                    as KM (fromText)
+import qualified Data.Aeson.KeyMap                 as KM (fromList)
 import           Data.Maybe
 import qualified Data.Text.Encoding                as T
 import           Network.HTTP.Conduit
@@ -153,8 +154,8 @@ parseResponseString (Right b) = case parseQuery $ BSL.toStrict b of
                                     Error _   -> Left errorMessage
                                     Success x -> Right x
   where
-    queryToValue = Object . HM.fromList . map paramToPair
-    paramToPair (k, mv) = (T.decodeUtf8 k, maybe Null (String . T.decodeUtf8) mv)
+    queryToValue = Object . KM.fromList . map paramToPair
+    paramToPair (k, mv) = (KM.fromText (T.decodeUtf8 k), maybe Null (String . T.decodeUtf8) mv)
     errorMessage = parseOAuth2Error b
 
 --------------------------------------------------
