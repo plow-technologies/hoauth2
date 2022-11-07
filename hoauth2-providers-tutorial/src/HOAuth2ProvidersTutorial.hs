@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE RankNTypes #-}
@@ -11,11 +10,11 @@ module HOAuth2ProvidersTutorial where
 
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except
-import Data.ByteString.Lazy.Char8 qualified as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import Data.Set qualified as Set
-import Data.Text.Encoding qualified as T
-import Data.Text.Lazy qualified as TL
+import qualified Data.Set as Set
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.Lazy as TL
 import Network.HTTP.Conduit (newManager, tlsManagerSettings)
 import Network.HTTP.Types (status302)
 import Network.OAuth.OAuth2 (
@@ -39,7 +38,7 @@ import Network.OAuth2.Provider.Google (
 import URI.ByteString (URI, serializeURIRef')
 import URI.ByteString.QQ (uri)
 import Web.Scotty (ActionM, scotty)
-import Web.Scotty qualified as Scotty
+import qualified Web.Scotty as Scotty
 import Prelude hiding (id)
 
 ------------------------------

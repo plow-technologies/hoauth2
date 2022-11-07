@@ -12,15 +12,15 @@ module Network.OAuth2.Provider.Google where
 
 import Crypto.PubKey.RSA.Types
 import Data.Aeson
-import Data.Aeson qualified as Aeson
+import qualified Data.Aeson as Aeson
 import Data.Bifunctor
 import Data.ByteString.Contrib
-import Data.Map.Strict qualified as Map
+import qualified Data.Map.Strict as Map
 import Data.Maybe
-import Data.Set qualified as Set
-import Data.Text qualified as T
+import qualified Data.Set as Set
+import qualified Data.Text as T
 import Data.Text.Lazy (Text)
-import Data.Text.Lazy qualified as TL
+import qualified Data.Text.Lazy as TL
 import Data.Time
 import GHC.Generics
 import Jose.Jwa

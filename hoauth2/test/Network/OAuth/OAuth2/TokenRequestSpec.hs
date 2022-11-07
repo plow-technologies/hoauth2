@@ -1,6 +1,6 @@
 module Network.OAuth.OAuth2.TokenRequestSpec where
 
-import Data.Aeson qualified as Aeson
+import qualified Data.Aeson as Aeson
 import Network.OAuth.OAuth2.TokenRequest
 import Test.Hspec
 

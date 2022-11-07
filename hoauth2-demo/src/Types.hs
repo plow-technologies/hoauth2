@@ -10,25 +10,25 @@ import Data.Aeson
 import Data.Default
 import Data.Maybe
 import Data.Text.Lazy (Text)
-import Data.Text.Lazy qualified as TL
+import qualified Data.Text.Lazy as TL
 import Network.OAuth.OAuth2 hiding (RefreshToken)
 import Network.OAuth2.Experiment
-import Network.OAuth2.Provider.Auth0 qualified as IAuth0
-import Network.OAuth2.Provider.AzureAD qualified as IAzureAD
-import Network.OAuth2.Provider.Dropbox qualified as IDropbox
-import Network.OAuth2.Provider.Facebook qualified as IFacebook
-import Network.OAuth2.Provider.Fitbit qualified as IFitbit
-import Network.OAuth2.Provider.Github qualified as IGithub
-import Network.OAuth2.Provider.Google qualified as IGoogle
-import Network.OAuth2.Provider.Linkedin qualified as ILinkedin
-import Network.OAuth2.Provider.Okta qualified as IOkta
-import Network.OAuth2.Provider.Slack qualified as ISlack
-import Network.OAuth2.Provider.StackExchange qualified as IStackExchange
-import Network.OAuth2.Provider.Twitter qualified as ITwitter
-import Network.OAuth2.Provider.Weibo qualified as IWeibo
-import Network.OAuth2.Provider.ZOHO qualified as IZOHO
+import qualified Network.OAuth2.Provider.Auth0 as IAuth0
+import qualified Network.OAuth2.Provider.AzureAD as IAzureAD
+import qualified Network.OAuth2.Provider.Dropbox as IDropbox
+import qualified Network.OAuth2.Provider.Facebook as IFacebook
+import qualified Network.OAuth2.Provider.Fitbit as IFitbit
+import qualified Network.OAuth2.Provider.Github as IGithub
+import qualified Network.OAuth2.Provider.Google as IGoogle
+import qualified Network.OAuth2.Provider.Linkedin as ILinkedin
+import qualified Network.OAuth2.Provider.Okta as IOkta
+import qualified Network.OAuth2.Provider.Slack as ISlack
+import qualified Network.OAuth2.Provider.StackExchange as IStackExchange
+import qualified Network.OAuth2.Provider.Twitter as ITwitter
+import qualified Network.OAuth2.Provider.Weibo as IWeibo
+import qualified Network.OAuth2.Provider.ZOHO as IZOHO
 import Text.Mustache
-import Text.Mustache qualified as M
+import qualified Text.Mustache as M
 import Prelude hiding (id)
 
 -------------------------------------------------------------------------------

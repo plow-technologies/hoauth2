@@ -7,15 +7,15 @@ module Network.OAuth.OAuth2.TokenRequest where
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Trans.Except (ExceptT (..), throwE)
 import Data.Aeson
-import Data.Aeson.Key qualified as Key
-import Data.Aeson.KeyMap qualified as KeyMap
-import Data.ByteString.Lazy.Char8 qualified as BSL
+import qualified Data.Aeson.Key as Key
+import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.ByteString.Lazy.Char8 as BSL
 import Data.Text (Text)
-import Data.Text qualified as T
-import Data.Text.Encoding qualified as T
+import qualified Data.Text as T
+import qualified Data.Text.Encoding as T
 import GHC.Generics (Generic)
 import Network.HTTP.Conduit
-import Network.HTTP.Types qualified as HT
+import qualified Network.HTTP.Types as HT
 import Network.HTTP.Types.URI (parseQuery)
 import Network.OAuth.OAuth2.Internal
 import URI.ByteString

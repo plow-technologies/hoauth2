@@ -2,8 +2,8 @@
 
 module Data.ByteString.Contrib where
 
-import Data.ByteString qualified as BS
-import Data.ByteString.Lazy qualified as BSL
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Lazy as BSL
 
 bsToStrict :: BSL.ByteString -> BS.ByteString
 #if MIN_VERSION_bytestring(0,11,0)

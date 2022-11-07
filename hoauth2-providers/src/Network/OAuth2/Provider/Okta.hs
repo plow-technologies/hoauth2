@@ -11,11 +11,11 @@ module Network.OAuth2.Provider.Okta where
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
 import Data.Aeson
-import Data.Aeson qualified as Aeson
+import qualified Data.Aeson as Aeson
 import Data.Bifunctor
 import Data.ByteString.Contrib
-import Data.Map.Strict qualified as Map
-import Data.Set qualified as Set
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Data.Text.Lazy (Text)
 import Data.Time
 import GHC.Generics

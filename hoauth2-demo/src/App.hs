@@ -1,7 +1,6 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -16,16 +15,16 @@ import Control.Monad.Trans.Except
 import Data.Aeson
 import Data.Maybe
 import Data.Text.Lazy (Text)
-import Data.Text.Lazy qualified as TL
+import qualified Data.Text.Lazy as TL
 import Idp
 import Network.HTTP.Conduit
 import Network.HTTP.Types
 import Network.OAuth.OAuth2
-import Network.OAuth.OAuth2 qualified as OAuth2
+import qualified Network.OAuth.OAuth2 as OAuth2
 import Network.OAuth2.Experiment
-import Network.OAuth2.Provider.Auth0 qualified as IAuth0
-import Network.OAuth2.Provider.Okta qualified as IOkta
-import Network.Wai qualified as WAI
+import qualified Network.OAuth2.Provider.Auth0 as IAuth0
+import qualified Network.OAuth2.Provider.Okta as IOkta
+import qualified Network.Wai as WAI
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Middleware.Static
 import Session
