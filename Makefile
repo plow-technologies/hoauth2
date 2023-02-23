@@ -1,44 +1,64 @@
-default: build
+default: b
 
-clean:
-	cabal v2-clean
+c:
+	cabal clean
 
-build:
-	cabal v2-build all
+b:
+	cabal build -j --run-tests all
 
-## install ghcid globally: `cabal install ghcid`
-watch:
-	ghcid --command="cabal v2-repl ."
+build-ide:
+	cabal build -j --run-tests all --ghc-options="-fwrite-ide-info"
 
-watch-demo:
-	ghcid --command="cabal v2-repl demo-server"
+rb: c b
 
-repl-demo:
-	cabal v2-repl demo-server
+l:
+	hlint .
 
-start-demo:
-	cabal v2-run demo-server
-
-rebuild: clean build
-
-hlint:
-	hlint hoauth2/src hoauth2-example/src
+hlint-fix:
+	hlint --refactor --refactor-options="--inplace" .
 
 doc: build
-	cabal v2-haddock all
+	cabal haddock all
 
-dist: rebuild
-	cabal v2-sdist all
+dist: rb
+	cabal sdist all
+
+format-cabal:
+	cabal-fmt -i hoauth2/hoauth2.cabal
+	cabal-fmt -i hoauth2-tutorial/hoauth2-tutorial.cabal
+	cabal-fmt -i hoauth2-providers/hoauth2-providers.cabal
+	cabal-fmt -i hoauth2-providers-tutorial/hoauth2-providers-tutorial.cabal
+	cabal-fmt -i hoauth2-demo/hoauth2-demo.cabal
+
+## FIXME: can run directly from cli but 'make format'
+format-hs:
+	fourmolu -i $(fd -e hs)
+
+## install ghcid globally: `cabal install ghcid`
+watch-lib:
+	ghcid --command="cabal repl hoauth2" --restart=hoauth2/hoauth2.cabal
+
+publish: dist
+	cabal upload $(echo ./dist-newstyle/sdist/*.tar.gz)
 
 ####################
 ### CI - nix build
 ####################
-
-cabal2nix:
-	cabal2nix -ftest . > hoauth2.nix
 
 ci-build:
 	nix-build
 
 ci-lint:
 	nix-shell --command 'make hlint'
+
+###############################################################################
+#                                    HIEDB                                    #
+###############################################################################
+#
+# mk-html:
+# 	hiedb -D .hiedb html t:GrantTypeFlow:Network.OAuth2.Experiment.Types:hoauth2-2.5.0-inplace
+#
+# mk-graph:
+# 	hiedb index -D .hiedb
+# 	hiedb ref-graph -D .hiedb
+# 	dot -Tsvg refs.dot > /tmp/hoauth2.svg

@@ -1,15 +1,19 @@
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | Bindings Access Token and Refresh Token part of The OAuth 2.0 Authorization Framework
+-- RFC6749 <https://www.rfc-editor.org/rfc/rfc6749>
 module Network.OAuth.OAuth2.TokenRequest where
 
-import Control.Monad.Trans.Except
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Trans.Except (ExceptT (..), throwE)
 import Data.Aeson
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KeyMap
 import qualified Data.ByteString.Lazy.Char8 as BSL
+import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import GHC.Generics
+import GHC.Generics (Generic)
 import Network.HTTP.Conduit
 import qualified Network.HTTP.Types as HT
 import Network.HTTP.Types.URI (parseQuery)
@@ -22,21 +26,48 @@ import URI.ByteString
 
 --------------------------------------------------
 
-instance FromJSON Errors where
-  parseJSON = genericParseJSON defaultOptions {constructorTagModifier = camelTo2 '_', allNullaryToStringTag = True}
-
-instance ToJSON Errors where
-  toEncoding = genericToEncoding defaultOptions {constructorTagModifier = camelTo2 '_', allNullaryToStringTag = True}
+data TokenRequestError = TokenRequestError
+  { error :: TokenRequestErrorCode
+  , errorDescription :: Maybe Text
+  , errorUri :: Maybe (URIRef Absolute)
+  }
+  deriving (Show, Eq, Generic)
 
 -- | Token Error Responses https://tools.ietf.org/html/rfc6749#section-5.2
-data Errors
+data TokenRequestErrorCode
   = InvalidRequest
   | InvalidClient
   | InvalidGrant
   | UnauthorizedClient
   | UnsupportedGrantType
   | InvalidScope
-  deriving (Show, Eq, Generic)
+  | UnknownErrorCode Text
+  deriving (Show, Eq)
+
+instance FromJSON TokenRequestErrorCode where
+  parseJSON = withText "parseJSON TokenRequestErrorCode" $ \t ->
+    pure $ case t of
+      "invalid_request" -> InvalidRequest
+      "invalid_client" -> InvalidClient
+      "invalid_grant" -> InvalidGrant
+      "unauthorized_client" -> UnauthorizedClient
+      "unsupported_grant_type" -> UnsupportedGrantType
+      "invalid_scope" -> InvalidScope
+      _ -> UnknownErrorCode t
+
+instance FromJSON TokenRequestError where
+  parseJSON = genericParseJSON defaultOptions {constructorTagModifier = camelTo2 '_'}
+
+parseTokeRequestError :: BSL.ByteString -> TokenRequestError
+parseTokeRequestError string =
+  either (mkDecodeOAuth2Error string) id (eitherDecode string)
+  where
+    mkDecodeOAuth2Error :: BSL.ByteString -> String -> TokenRequestError
+    mkDecodeOAuth2Error response err =
+      TokenRequestError
+        (UnknownErrorCode "")
+        (Just $ T.pack $ "Decode TokenRequestError failed: " <> err <> "\n Original Response:\n" <> show (T.decodeUtf8 $ BSL.toStrict response))
+        Nothing
 
 --------------------------------------------------
 
@@ -54,33 +85,26 @@ accessTokenUrl ::
 accessTokenUrl oa code =
   let uri = oauth2TokenEndpoint oa
       body =
-        [ ("code", T.encodeUtf8 $ extoken code),
-          ("redirect_uri", serializeURIRef' $ oauth2RedirectUri oa),
-          ("grant_type", "authorization_code")
+        [ ("code", T.encodeUtf8 $ extoken code)
+        , ("redirect_uri", serializeURIRef' $ oauth2RedirectUri oa)
+        , ("grant_type", "authorization_code")
         ]
    in (uri, body)
 
--- | Using a Refresh Token.  Obtain a new access token by
--- sending a refresh token to the Authorization server.
+-- | Obtain a new access token by sending a Refresh Token to the Authorization server.
 refreshAccessTokenUrl ::
   OAuth2 ->
-  -- | refresh token gained via authorization URL
+  -- | Refresh Token gained via authorization URL
   RefreshToken ->
-  -- | refresh token request URL plus the request body.
+  -- | Refresh Token request URL plus the request body.
   (URI, PostBody)
 refreshAccessTokenUrl oa token = (uri, body)
   where
     uri = oauth2TokenEndpoint oa
     body =
-      [ ("grant_type", "refresh_token"),
-        ("refresh_token", T.encodeUtf8 $ rtoken token)
+      [ ("grant_type", "refresh_token")
+      , ("refresh_token", T.encodeUtf8 $ rtoken token)
       ]
-
-clientSecretPost :: OAuth2 -> PostBody
-clientSecretPost oa =
-  [ ("client_id", T.encodeUtf8 $ oauth2ClientId oa),
-    ("client_secret", T.encodeUtf8 $ oauth2ClientSecret oa)
-  ]
 
 --------------------------------------------------
 
@@ -88,17 +112,9 @@ clientSecretPost oa =
 
 --------------------------------------------------
 
--- | Fetch OAuth2 Token with authenticate in request header.
---
--- OAuth2 spec allows `client_id` and `client_secret` to
--- either be sent in the header (as basic authentication)
--- OR as form/url params.
--- The OAuth server can choose to implement only one, or both.
--- Unfortunately, there is no way for the OAuth client (i.e. this library) to
--- know which method to use.
--- Please take a look at the documentation of the
--- service that you are integrating with and either use `fetchAccessToken` or `fetchAccessToken2`
+-- | Exchange @code@ for an Access Token with authenticate in request header.
 fetchAccessToken ::
+  (MonadIO m) =>
   -- | HTTP connection manager
   Manager ->
   -- | OAuth Data
@@ -106,79 +122,124 @@ fetchAccessToken ::
   -- | OAuth2 Code
   ExchangeToken ->
   -- | Access Token
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-fetchAccessToken = fetchAccessTokenInternal ClientSecretBasic
+  ExceptT TokenRequestError m OAuth2Token
+fetchAccessToken = fetchAccessTokenWithAuthMethod ClientSecretBasic
 
 fetchAccessToken2 ::
+  (MonadIO m) =>
   -- | HTTP connection manager
   Manager ->
   -- | OAuth Data
   OAuth2 ->
-  -- | OAuth 2 Tokens
+  -- | Authorization Code
   ExchangeToken ->
   -- | Access Token
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-fetchAccessToken2 = fetchAccessTokenInternal ClientSecretPost
-{-# DEPRECATED fetchAccessToken2 "renamed to fetchAccessTokenInternal" #-}
+  ExceptT TokenRequestError m OAuth2Token
+fetchAccessToken2 = fetchAccessTokenWithAuthMethod ClientSecretPost
+{-# DEPRECATED fetchAccessToken2 "use 'fetchAccessTokenWithAuthMethod'" #-}
 
 fetchAccessTokenInternal ::
+  (MonadIO m) =>
   ClientAuthenticationMethod ->
   -- | HTTP connection manager
   Manager ->
   -- | OAuth Data
   OAuth2 ->
-  -- | OAuth 2 Tokens
+  -- | Authorization Code
   ExchangeToken ->
   -- | Access Token
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-fetchAccessTokenInternal authMethod manager oa code = do
+  ExceptT TokenRequestError m OAuth2Token
+fetchAccessTokenInternal = fetchAccessTokenWithAuthMethod
+{-# DEPRECATED fetchAccessTokenInternal "use 'fetchAccessTokenWithAuthMethod'" #-}
+
+-- | Exchange @code@ for an Access Token
+--
+-- OAuth2 spec allows credential (`client_id`, `client_secret`) to be sent
+-- either in the header (a.k.a 'ClientSecretBasic').
+-- or as form/url params (a.k.a 'ClientSecretPost').
+--
+-- The OAuth provider can choose to implement only one, or both.
+-- Look for API document from the OAuth provider you're dealing with.
+-- If you're uncertain, try 'fetchAccessToken' which sends credential
+-- in authorization http header, which is common case.
+--
+-- @since 2.6.0
+fetchAccessTokenWithAuthMethod ::
+  (MonadIO m) =>
+  ClientAuthenticationMethod ->
+  -- | HTTP connection manager
+  Manager ->
+  -- | OAuth Data
+  OAuth2 ->
+  -- | Authorization Code
+  ExchangeToken ->
+  -- | Access Token
+  ExceptT TokenRequestError m OAuth2Token
+fetchAccessTokenWithAuthMethod authMethod manager oa code = do
   let (uri, body) = accessTokenUrl oa code
   let extraBody = if authMethod == ClientSecretPost then clientSecretPost oa else []
   doJSONPostRequest manager oa uri (body ++ extraBody)
 
--- doJSONPostRequest append client secret to header which is needed for both
--- client_secret_post and client_secret_basic
-
--- | Fetch a new AccessToken with the Refresh Token with authentication in request header.
---
--- OAuth2 spec allows `client_id` and `client_secret` to
--- either be sent in the header (as basic authentication)
--- OR as form/url params.
--- The OAuth server can choose to implement only one, or both.
--- Unfortunately, there is no way for the OAuth client (i.e. this library) to
--- know which method to use. Please take a look at the documentation of the
--- service that you are integrating with and either use `refreshAccessToken` or `refreshAccessToken2`
+-- | Fetch a new AccessToken using the Refresh Token with authentication in request header.
 refreshAccessToken ::
+  (MonadIO m) =>
   -- | HTTP connection manager.
   Manager ->
   -- | OAuth context
   OAuth2 ->
-  -- | refresh token gained after authorization
+  -- | Refresh Token gained after authorization
   RefreshToken ->
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-refreshAccessToken = refreshAccessTokenInternal ClientSecretBasic
+  ExceptT TokenRequestError m OAuth2Token
+refreshAccessToken = refreshAccessTokenWithAuthMethod ClientSecretBasic
 
 refreshAccessToken2 ::
+  (MonadIO m) =>
   -- | HTTP connection manager.
   Manager ->
   -- | OAuth context
   OAuth2 ->
-  -- | refresh token gained after authorization
+  -- | Refresh Token gained after authorization
   RefreshToken ->
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-refreshAccessToken2 = refreshAccessTokenInternal ClientSecretPost
-{-# DEPRECATED refreshAccessToken2 "renamed to fetchAccessTokenInternal" #-}
+  ExceptT TokenRequestError m OAuth2Token
+refreshAccessToken2 = refreshAccessTokenWithAuthMethod ClientSecretPost
+{-# DEPRECATED refreshAccessToken2 "use 'refreshAccessTokenWithAuthMethod'" #-}
 
 refreshAccessTokenInternal ::
+  (MonadIO m) =>
   ClientAuthenticationMethod ->
   -- | HTTP connection manager.
   Manager ->
   -- | OAuth context
   OAuth2 ->
-  -- | refresh token gained after authorization
+  -- | Refresh Token gained after authorization
   RefreshToken ->
-  ExceptT (OAuth2Error Errors) IO OAuth2Token
-refreshAccessTokenInternal authMethod manager oa token = do
+  ExceptT TokenRequestError m OAuth2Token
+refreshAccessTokenInternal = refreshAccessTokenWithAuthMethod
+{-# DEPRECATED refreshAccessTokenInternal "use 'refreshAccessTokenWithAuthMethod'" #-}
+
+-- | Fetch a new AccessToken using the Refresh Token.
+--
+-- OAuth2 spec allows credential (`client_id`, `client_secret`) to be sent
+-- either in the header (a.k.a 'ClientSecretBasic').
+-- or as form/url params (a.k.a 'ClientSecretPost').
+--
+-- The OAuth provider can choose to implement only one, or both.
+-- Look for API document from the OAuth provider you're dealing with.
+-- If you're uncertain, try 'refreshAccessToken' which sends credential
+-- in authorization http header, which is common case.
+--
+-- @since 2.6.0
+refreshAccessTokenWithAuthMethod ::
+  (MonadIO m) =>
+  ClientAuthenticationMethod ->
+  -- | HTTP connection manager.
+  Manager ->
+  -- | OAuth context
+  OAuth2 ->
+  -- | Refresh Token gained after authorization
+  RefreshToken ->
+  ExceptT TokenRequestError m OAuth2Token
+refreshAccessTokenWithAuthMethod authMethod manager oa token = do
   let (uri, body) = refreshAccessTokenUrl oa token
   let extraBody = if authMethod == ClientSecretPost then clientSecretPost oa else []
   doJSONPostRequest manager oa uri (body ++ extraBody)
@@ -191,7 +252,7 @@ refreshAccessTokenInternal authMethod manager oa token = do
 
 -- | Conduct post request and return response as JSON.
 doJSONPostRequest ::
-  (FromJSON err, FromJSON a) =>
+  (MonadIO m, FromJSON a) =>
   -- | HTTP connection manager.
   Manager ->
   -- | OAuth options
@@ -201,7 +262,7 @@ doJSONPostRequest ::
   -- | request body
   PostBody ->
   -- | Response as JSON
-  ExceptT (OAuth2Error err) IO a
+  ExceptT TokenRequestError m a
 doJSONPostRequest manager oa uri body = do
   resp <- doSimplePostRequest manager oa uri body
   case parseResponseFlexible resp of
@@ -210,7 +271,7 @@ doJSONPostRequest manager oa uri body = do
 
 -- | Conduct post request.
 doSimplePostRequest ::
-  FromJSON err =>
+  (MonadIO m) =>
   -- | HTTP connection manager.
   Manager ->
   -- | OAuth options
@@ -220,9 +281,9 @@ doSimplePostRequest ::
   -- | Request body.
   PostBody ->
   -- | Response as ByteString
-  ExceptT (OAuth2Error err) IO BSL.ByteString
+  ExceptT TokenRequestError m BSL.ByteString
 doSimplePostRequest manager oa url body =
-  ExceptT $ fmap handleOAuth2TokenResponse go
+  ExceptT . liftIO $ fmap handleOAuth2TokenResponse go
   where
     addBasicAuth = applyBasicAuth (T.encodeUtf8 $ oauth2ClientId oa) (T.encodeUtf8 $ oauth2ClientSecret oa)
     go = do
@@ -230,27 +291,27 @@ doSimplePostRequest manager oa url body =
       let req' = (addBasicAuth . addDefaultRequestHeaders) req
       httpLbs (urlEncodedBody body req') manager
 
--- | Parses a @Response@ to to @OAuth2Result@
-handleOAuth2TokenResponse :: FromJSON err => Response BSL.ByteString -> Either (OAuth2Error err) BSL.ByteString
+-- | Gets response body from a @Response@ if 200 otherwise assume 'OAuth2Error'
+handleOAuth2TokenResponse :: Response BSL.ByteString -> Either TokenRequestError BSL.ByteString
 handleOAuth2TokenResponse rsp =
   if HT.statusIsSuccessful (responseStatus rsp)
     then Right $ responseBody rsp
-    else Left $ parseOAuth2Error (responseBody rsp)
+    else Left $ parseTokeRequestError (responseBody rsp)
 
--- | Try 'parseResponseJSON', if failed then parses the @OAuth2Result BSL.ByteString@ that contains not JSON but a Query String.
+-- | Try to parses response as JSON, if failed, try to parse as like query string.
 parseResponseFlexible ::
-  (FromJSON err, FromJSON a) =>
+  (FromJSON a) =>
   BSL.ByteString ->
-  Either (OAuth2Error err) a
+  Either TokenRequestError a
 parseResponseFlexible r = case eitherDecode r of
   Left _ -> parseResponseString r
   Right x -> Right x
 
--- | Parses a @OAuth2Result BSL.ByteString@ that contains not JSON but a Query String
+-- | Parses the response that contains not JSON but a Query String
 parseResponseString ::
-  (FromJSON err, FromJSON a) =>
+  (FromJSON a) =>
   BSL.ByteString ->
-  Either (OAuth2Error err) a
+  Either TokenRequestError a
 parseResponseString b = case parseQuery $ BSL.toStrict b of
   [] -> Left errorMessage
   a -> case fromJSON $ queryToValue a of
@@ -259,7 +320,7 @@ parseResponseString b = case parseQuery $ BSL.toStrict b of
   where
     queryToValue = Object . KeyMap.fromList . map paramToPair
     paramToPair (k, mv) = (Key.fromText $ T.decodeUtf8 k, maybe Null (String . T.decodeUtf8) mv)
-    errorMessage = parseOAuth2Error b
+    errorMessage = parseTokeRequestError b
 
 -- | Set several header values:
 --   + userAgennt    : `hoauth2`
@@ -268,3 +329,10 @@ addDefaultRequestHeaders :: Request -> Request
 addDefaultRequestHeaders req =
   let headers = defaultRequestHeaders ++ requestHeaders req
    in req {requestHeaders = headers}
+
+-- | Add Credential (client_id, client_secret) to the request post body.
+clientSecretPost :: OAuth2 -> PostBody
+clientSecretPost oa =
+  [ ("client_id", T.encodeUtf8 $ oauth2ClientId oa)
+  , ("client_secret", T.encodeUtf8 $ oauth2ClientSecret oa)
+  ]

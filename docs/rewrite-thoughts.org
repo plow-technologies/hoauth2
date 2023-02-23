@@ -1,12 +1,4 @@
-* Reference
-1. [[https://datatracker.ietf.org/doc/html/rfc6749][The OAuth 2.0 Authorization Framework]]
-2. [[https://datatracker.ietf.org/doc/html/rfc7636][PKCE]]
-3. OIDC
-4. JWT
-5. Service provider
-
 * Notes
-
 - OAuth2 spec only supports Access Token and Refresh Token
 - OIDC spec adds ID Token
 - Better to make distinguish.
@@ -24,130 +16,186 @@
 
 * Pseudo code
 
-#+begin_src haskell
-data ResponseType = Code | Token (maybe not support) | ...
-newtype State = ...
-newtype AuthorizationCode = ...
-type Scope = [Text]
+#+begin_src haskell :tangle RewriteThoughts.hs
+{-# LANGUAGE DuplicateRecordFields #-}
+module RewriteThoughts where
+
+import GHC.Generics
+import Data.Text
+
+-- | import URI.ByteString
+data URI = URI
+  deriving (Show, Eq, Generic)
+
+-- | May not need to support Token
+--
+data GrantType
+data ResponseType = Code | Token | IdToken
+  deriving (Show, Eq, Generic)
+newtype State = State Text
+  deriving (Show, Eq, Generic)
+newtype Nonce = Nonce Text
+  deriving (Show, Eq, Generic)
+newtype AuthorizationCode = AuthorizationCode Text
+  deriving (Show, Eq, Generic)
+newtype RefreshToken = RefreshToken Text
+  deriving (Show, Eq, Generic)
+newtype AccessToken = AccessToken Text
+  deriving (Show, Eq, Generic)
+data Scope = OpenID | OfflineAccess | Profile | Email | Custom Text
+  deriving (Show, Eq, Generic)
 
 data AuthorizationCodeRequest = AuthorizationCodeReq
-{ responseType :: ResponseType
-, clientId :: Text
-, redirectUri :: Maybe Text
-, scope :: Scope
-, state :: Maybe State
-}
+  { responseType :: ResponseType
+  , clientId :: Text
+  , redirectUri :: Text
+  , scope :: [ Scope ]
+  , state :: State
+  }
+  deriving (Show, Eq, Generic)
 
 data AuthorizationCodeSuccessResponse = AuthorizationCodeSuccessResponse
-{ code :: AuthorizationCode
-, state :: Maybe state
-}
+  { code :: AuthorizationCode
+  , state :: State
+  }
+  deriving (Show, Eq, Generic)
 
-data AuthorizationCodeErrorCode = INVALID_REQUEST
-                                | UNAUTHORIZED_CLIENT
-                                | ACCESS_DENIED
-                                | UNSUPPORTED_RESPONSE_TYPE
-                                | INVALID_SCOPE
-                                | SERVER_ERROR
-                                | TEMPORARILY_UNAVAILABLE
+data AuthorizationCodeErrorCode = CODE_INVALID_REQUEST
+                                | CODE_UNAUTHORIZED_CLIENT
+                                | CODE_ACCESS_DENIED
+                                | CODE_UNSUPPORTED_RESPONSE_TYPE
+                                | CODE_INVALID_SCOPE
+                                | CODE_SERVER_ERROR
+                                | CODE_TEMPORARILY_UNAVAILABLE
                                 deriving (Show, Eq, Generic)
 
 data AuthorizationCodeErrorResponse = AuthorizationCodeErrorResponse
-{ error :: AuthorizationCodeErrorCode
-, errorDescription :: Maybe Text
-, errorUri :: Maybe URI
-, state :: Maybe State
-}
+  { error :: AuthorizationCodeErrorCode
+  , errorDescription :: Maybe Text
+  , errorUri :: Maybe URI
+  , state :: Maybe State
+  }
+  deriving (Show, Eq, Generic)
 
 type AuthorizationCodeResponse = Either AuthorizationCodeErrorResponse AuthorizationCodeSuccessResponse
 
-data GrantType = authorization_code | password | refresh_token
 data GrantType = AUTHORIZATION_CODE
                | PASSWORD
                | REFRESH_TOKEN
                deriving (Show, Eq, Generic)
-> -- | Enum type for each flow and type class function to
-> --   'convert' to auth code request parameters, body
-> --                access token request parameters, body
-> --
-> -- 4.1 Auth code flow
-> data AuthFlowAccessTokenRequest = AuthFlowAccessTokenRequest
-> { grantType :: GrantType
-> , code :: AuthorizationCode
-> , redirectUri :: URI
-> , clientId :: Text
-> } deriving (Show, Eq, Generic)
->
-> -- 4.2 Implicit flow
-> data ImplicitFlowAccessTokenRequest = ImplicitFlowAccessTokenRequest
-> { grantType :: GrantType
-> , code :: AuthorizationCode
-> , redirectUri :: URI
-> , clientId :: Text
-> } deriving (Show, Eq, Generic)
->
+-- | Enum type for each flow and type class function to
+--   'convert' to auth code request parameters, body
+--                access token request parameters, body
+--
+-- 4.1 Auth code flow
+data CodeFlowAccessTokenRequest = CodeFlowAccessTokenRequest
+  { grantType :: GrantType
+  , code :: AuthorizationCode
+  , redirectUri :: URI
+  , clientId :: Text
+  } deriving (Show, Eq, Generic)
 
-> -- 4.3 resource owner password credentials flow
-> data AccessTokenRequest = AccessTokenRequest
-> { grantType :: GrantType
-> , username :: Text
-> , password :: Text
-> , scope :: Scope
-> } deriving (Show, Eq, Generic)
->
-> -- 4.4 Client Credentials Grant
-> data AccessTokenRequest = AccessTokenRequest
-> { grantType :: GrantType
-> , scope :: Scope
-> } deriving (Show, Eq, Generic)
->
-> -- | https://tools.ietf.org/html/rfc6749#section-7.1
-> data TokenType = TOKEN_TYPE_BEARER | TOKEN_TYPE_MAC deriving (Show, Eq, Generic)
+-- 4.2 Implicit flow (do not support)
+
+-- 4.3 resource owner password credentials flow
+data ResourceOwenerAccessTokenRequest = ResourceOwenerAccessTokenRequest
+  { grantType :: GrantType
+  , username :: Text
+  , password :: Text
+  , scope :: [ Scope ]
+  } deriving (Show, Eq, Generic)
+
+-- 4.4 Client Credentials Grant
+data ClientCredentialsAccessTokenRequest = ClientCredentialsAccessTokenRequest
+  { grantType :: GrantType
+  , scope :: [ Scope ]
+  }
+  deriving (Show, Eq, Generic)
 
 
+-- | https://tools.ietf.org/html/rfc6749#section-7.1
+data TokenType = TOKEN_TYPE_BEARER | TOKEN_TYPE_MAC deriving (Show, Eq, Generic)
+
+-- | Looks like AccessTokenRequest can be GADTs to support 4.1, 4.2, 4.3?
 data AccessTokenRequest = AccessTokenRequest
-{ grantType :: GrantType
-, code :: AuthorizationCode
-, redirectUri :: URI
-, clientId :: Text
-}
+  { grantType :: GrantType
+  , code :: AuthorizationCode
+  , redirectUri :: URI
+  , clientId :: Text
+  }
+  deriving (Show, Eq, Generic)
 
 data AccessTokenSuccessResponse = AccessTokenSuccessResponse
-{ accessToken :: AccessToken
-, tokenType :: Text?
-, expiresIn :: Number
-, refreshToken :: RefreshToken
-, example_parameter :: ????
-}
+  { accessToken :: AccessToken
+  , tokenType :: Maybe Text
+  , expiresIn :: Maybe Int
+  , refreshToken :: Maybe RefreshToken
+  -- , example_parameter :: Maybe Text -- ^ what is this??
+  }
+  deriving (Show, Eq, Generic)
 
-data AccessTokenErrorResponeErrorCode = invalid_request | invalid_client | ...
-> data AccessTokenErrorResponeErrorCode = INVALID_REQUEST
->                                       | INVALID_CLIENT
->                                       | INVALID_GRANT
->                                       | UNAUTHORIZED_CLIENT
->                                       | UNSUPPORTED_GRANT_TYPE
->                                       | INVALID_SCOPE
->                                       deriving (Show, Eq, Generic)
+data AccessTokenErrorResponeErrorCode = TOKEN_INVALID_REQUEST
+                                      | TOKEN_INVALID_CLIENT
+                                      | TOKEN_INVALID_GRANT
+                                      | TOKEN_UNAUTHORIZED_CLIENT
+                                      | TOKEN_UNSUPPORTED_GRANT_TYPE
+                                      | TOKEN_INVALID_SCOPE
+                                      deriving (Show, Eq, Generic)
 
 data AccessTokenErrorResponse = AccessTokenErrorResponse
-{ error :: AccessTokenErrorResponeErrorCode
-, errorDescription :: Maybe Text
-, errorUri :: Maybe URI
-}
+  { error :: AccessTokenErrorResponeErrorCode
+  , errorDescription :: Maybe Text
+  , errorUri :: Maybe URI
+  }
+  deriving (Show, Eq, Generic)
 
 type AccessTokenResponse = Either AccessTokenErrorResponse AccessTokenSuccessResponse
 
 data RefreshTokenRequest = RefreshTokenRequest
-{ grantType :: GrantType
-, refreshToken :: RefreshToken
-, scope :: Scope
-}
+  { grantType :: GrantType
+  , refreshToken :: RefreshToken
+  , scope :: [ Scope ]
+  }
+  deriving (Show, Eq, Generic)
 
-??? RefreshTokenRequest Success / Error Response
-> data RefreshTokenRequest = RefreshTokenRequest
-> { grantType :: GrantType
-> , refreshToken :: RefreshToken
-> , scope :: Scope
-> } deriving (Show, Eq, Generic)
+data RefreshTokenErrorResponse
+data RefreshTokenSuccessResponse
+data RefreshTokenResponse = Either RefreshTokenErrorResponse RefreshTokenSuccessResponse
 
 #+end_src
+
+#+begin_example
+IdpApplication a
+IdpApplication 'Authorization                 -> AuthorizationRequest 'Authorization
+IdpApplication 'Authorization + AuthCode      -> TokenRequest 'Authorization
+IdpApplication 'Authorization + RefreshToken  -> RefreshTokenRequest 'Authorization
+IdpApplication 'Password                      -> TokenRequest 'Password
+IdpApplication 'ClientCred                    -> TokenRequest 'ClientCred
+  - is it possible to create one method does the conversion??
+
+AuthorizationRequest a   -> Map Text Text
+TokenRequestRequest a    -> Map Text Text
+RefreshTokenRequest a    -> Map Text Text
+  - how to create one method toQueryParam does the conversion??
+
+Then could conduit api request (or generate /authorize URI) base on
+  - endpoint from Idp a
+  - toQueryParam ++ extra parameter
+#+end_example
+
+* Reference
+1. [[https://datatracker.ietf.org/doc/html/rfc6749][The OAuth 2.0 Authorization Framework]]
+2. [[https://datatracker.ietf.org/doc/html/rfc7636][PKCE]]
+3. OIDC
+4. JWT
+5. Service provider
+
+* Implementation in other language
+- [[https://cs.opensource.google/go/x/oauth2/+/master:;bpv=1;bpt=0][Go]]
+- [[https://github.com/thephpleague/oauth2-client][PHP]]
+- [[https://docs.spring.io/spring-security/reference/servlet/oauth2/client/index.html][Java Spring]]
+
+* Notes
+** What is replay attacks?
+- [[https://auth0.com/docs/get-started/authentication-and-authorization-flow/mitigate-replay-attacks-when-using-the-implicit-flow][Mitigate Replay Attacks When Using the Implicit Flow]]
+** What is Cross-Site Request Forgery

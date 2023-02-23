@@ -1,0 +1,52 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeFamilies #-}
+
+-- | [LinkedIn Authenticating with OAuth 2.0 Overview](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authentication?context=linkedin%2Fcontext)
+module Network.OAuth2.Provider.Linkedin where
+
+import Data.Aeson
+import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
+import Data.Text.Lazy (Text)
+import GHC.Generics
+import Network.OAuth.OAuth2
+import Network.OAuth2.Experiment
+import URI.ByteString.QQ
+
+data Linkedin = Linkedin deriving (Eq, Show)
+
+type instance IdpUserInfo Linkedin = LinkedinUser
+
+defaultLinkedinApp :: IdpApplication 'AuthorizationCode Linkedin
+defaultLinkedinApp =
+  AuthorizationCodeIdpApplication
+    { idpAppClientId = ""
+    , idpAppClientSecret = ""
+    , idpAppScope = Set.fromList ["r_liteprofile"]
+    , idpAppAuthorizeState = "CHANGE_ME"
+    , idpAppAuthorizeExtraParams = Map.empty
+    , idpAppRedirectUri = [uri|http://localhost|]
+    , idpAppName = "default-linkedin-App"
+    , idpAppTokenRequestAuthenticationMethod = ClientSecretPost
+    , idp = defaultLinkedinIdp
+    }
+
+defaultLinkedinIdp :: Idp Linkedin
+defaultLinkedinIdp =
+  Idp
+    { idpFetchUserInfo = authGetJSON @(IdpUserInfo Linkedin)
+    , idpUserInfoEndpoint = [uri|https://api.linkedin.com/v2/me|]
+    , idpAuthorizeEndpoint = [uri|https://www.linkedin.com/oauth/v2/authorization|]
+    , idpTokenEndpoint = [uri|https://www.linkedin.com/oauth/v2/accessToken|]
+    }
+
+data LinkedinUser = LinkedinUser
+  { localizedFirstName :: Text
+  , localizedLastName :: Text
+  }
+  deriving (Show, Generic, Eq)
+
+instance FromJSON LinkedinUser

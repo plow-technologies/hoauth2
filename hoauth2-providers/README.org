@@ -1,0 +1,3 @@
+
+See [[./src/Network/OAuth2/Provider]] the list of supported Identity Providers.
+
