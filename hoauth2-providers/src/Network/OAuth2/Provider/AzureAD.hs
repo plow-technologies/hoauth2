@@ -48,8 +48,8 @@ defaultAzureADIdp =
 data AzureADUser = AzureADUser
   { sub :: Text
   , email :: Text
-  , familyName :: Text
-  , givenName :: Text
+  , familyName :: Maybe Text
+  , givenName :: Maybe Text
   , name :: Text
   }
   deriving (Show, Generic)
