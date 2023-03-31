@@ -50,7 +50,7 @@ data AzureADUser = AzureADUser
   , email :: Text
   , familyName :: Maybe Text
   , givenName :: Maybe Text
-  , name :: Text
+  , name :: Maybe Text
   }
   deriving (Show, Generic)
 
