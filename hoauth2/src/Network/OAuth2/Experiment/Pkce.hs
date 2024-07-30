@@ -11,6 +11,7 @@ import qualified Crypto.Hash as H
 import qualified Crypto.Random as Crypto
 import qualified Data.ByteArray as ByteArray
 import qualified Data.ByteString as BS
+import qualified Data.Base64.Types as B64
 import qualified Data.ByteString.Base64.URL as B64
 import Data.Text (Text)
 import qualified Data.Text.Encoding as T
@@ -42,7 +43,7 @@ mkPkceParam = do
       }
 
 encodeCodeVerifier :: BS.ByteString -> Text
-encodeCodeVerifier = B64.encodeBase64Unpadded . BS.pack . ByteArray.unpack . hashSHA256
+encodeCodeVerifier = B64.extractBase64 . B64.encodeBase64Unpadded . BS.pack . ByteArray.unpack . hashSHA256
 
 genCodeVerifier :: MonadIO m => m BS.ByteString
 genCodeVerifier = liftIO $ getBytesInternal BS.empty
